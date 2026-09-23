@@ -1,0 +1,19 @@
+[package]
+name = "ds-identity-bootstrap-ui"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Reusable Yew components for DCP identity bootstrap (participant context, did:web publishing, keypair lifecycle) -- shared by connector/participant and authority UXs"
+repository = "https://github.com/ds-labs-org/ds-identity-bootstrap-ui"
+keywords = ["dataspace", "dcp", "yew"]
+readme = "README.md"
+
+[dependencies]
+yew = { version = "0.23.0", features = ["csr"] }
+patternfly-yew = { version = "0.8.2", features = ["experimental"] }
+edc-identity-hub-client = { git = "https://github.com/ds-labs-org/edc-identity-hub-client.git", branch = "feat/v1beta-and-issuer-admin-api" }
+serde = { version = "1", features = ["derive"] }
+wasm-bindgen-futures = "0.4"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
