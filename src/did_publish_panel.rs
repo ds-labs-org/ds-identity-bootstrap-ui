@@ -35,11 +35,11 @@ pub fn is_published(state: &str) -> bool {
     state.trim().eq_ignore_ascii_case("published")
 }
 
-fn build_client(endpoint: &str, bearer_token: Option<String>) -> IdentityHubClient {
+fn build_client(endpoint: &str) -> IdentityHubClient {
     IdentityHubClient::new(
         reqwest::Client::new(),
         endpoint.to_string(),
-        bearer_token,
+        None,
         IdentityHubClientVersion::V1Beta,
     )
 }
@@ -64,8 +64,6 @@ enum StateLoad {
 pub struct DidPublishPanelProps {
     /// The page's own origin, e.g. `https://issuer-admin.ds-labs.org`.
     pub endpoint: String,
-    #[prop_or_default]
-    pub bearer_token: Option<String>,
     pub participant_context_id: String,
     /// The `participantId` this context was created with -- combined with
     /// `did_from_participant_id` to get the DID string every DID-management
@@ -90,18 +88,16 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
     {
         let state_load = state_load.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         let did = did.clone();
         use_effect_with((participant_context_id.clone(), did.clone(), *reload), move |_| {
             state_load.set(StateLoad::Loading);
             let state_load = state_load.clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let did = did.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client.get_did_state(&participant_context_id, &did).await {
                     Ok(state) => state_load.set(StateLoad::Loaded(state)),
                     Err(err) => state_load.set(StateLoad::Error(describe_error(err))),
@@ -130,7 +126,6 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
         let action_error = action_error.clone();
         let reload = reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         let did = did.clone();
         Callback::from(move |_: MouseEvent| {
@@ -141,11 +136,10 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
             let reload = reload.clone();
             let current_reload = *reload;
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let did = did.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client.publish_did(&participant_context_id, &did).await {
                     Ok(()) => {
                         acting.set(false);
@@ -165,7 +159,6 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
         let action_error = action_error.clone();
         let reload = reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         let did = did.clone();
         Callback::from(move |_: MouseEvent| {
@@ -176,11 +169,10 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
             let reload = reload.clone();
             let current_reload = *reload;
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let did = did.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client.unpublish_did(&participant_context_id, &did).await {
                     Ok(()) => {
                         acting.set(false);

@@ -66,8 +66,6 @@ fn step_index(step: WizardStep) -> u8 {
 pub struct IdentityBootstrapWizardProps {
     /// The page's own origin, e.g. `https://issuer-admin.ds-labs.org`.
     pub endpoint: String,
-    #[prop_or_default]
-    pub bearer_token: Option<String>,
     /// An existing, incompletely-bootstrapped context to resume. `None`
     /// lets step 1 create one.
     #[prop_or_default]
@@ -140,7 +138,6 @@ pub fn identity_bootstrap_wizard(props: &IdentityBootstrapWizardProps) -> Html {
         WizardStep::CreateContext => html! {
             <ParticipantContextPanel
                 endpoint={props.endpoint.clone()}
-                bearer_token={props.bearer_token.clone()}
                 participant_context_id={None::<String>}
                 on_created={on_created}
             />
@@ -158,7 +155,6 @@ pub fn identity_bootstrap_wizard(props: &IdentityBootstrapWizardProps) -> Html {
             html! {
                 <ParticipantContextPanel
                     endpoint={props.endpoint.clone()}
-                    bearer_token={props.bearer_token.clone()}
                     participant_context_id={Some(id)}
                     on_activated={on_activated}
                 />
@@ -173,7 +169,6 @@ pub fn identity_bootstrap_wizard(props: &IdentityBootstrapWizardProps) -> Html {
             html! {
                 <DidPublishPanel
                     endpoint={props.endpoint.clone()}
-                    bearer_token={props.bearer_token.clone()}
                     participant_context_id={id.clone()}
                     participant_id={id}
                     on_published={on_published}
@@ -191,7 +186,6 @@ pub fn identity_bootstrap_wizard(props: &IdentityBootstrapWizardProps) -> Html {
                     <Title level={Level::H3} size={Size::Large}>{ "Keys" }</Title>
                     <KeypairLifecyclePanel
                         endpoint={props.endpoint.clone()}
-                        bearer_token={props.bearer_token.clone()}
                         participant_context_id={id}
                     />
                 </>
@@ -288,7 +282,6 @@ mod wasm_tests {
     async fn opens_on_create_context_when_no_participant_context_id_is_given() {
         let root = mount_in_fresh_div(IdentityBootstrapWizardProps {
             endpoint: "https://example.invalid".to_string(),
-            bearer_token: None,
             participant_context_id: None,
             on_bootstrapped: Callback::noop(),
         });
@@ -307,7 +300,6 @@ mod wasm_tests {
     async fn skips_to_activate_when_a_participant_context_id_is_already_known() {
         let root = mount_in_fresh_div(IdentityBootstrapWizardProps {
             endpoint: "https://example.invalid".to_string(),
-            bearer_token: None,
             participant_context_id: Some("did.ds-labs.org".to_string()),
             on_bootstrapped: Callback::noop(),
         });

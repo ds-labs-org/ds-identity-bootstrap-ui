@@ -116,11 +116,13 @@ pub fn build_participant_context(
     ))
 }
 
-fn build_client(endpoint: &str, bearer_token: Option<String>) -> IdentityHubClient {
+// No API key is passed here: identity-api's own `x-api-key` auth is
+// injected server-side by apisix, never by this crate's callers.
+fn build_client(endpoint: &str) -> IdentityHubClient {
     IdentityHubClient::new(
         reqwest::Client::new(),
         endpoint.to_string(),
-        bearer_token,
+        None,
         IdentityHubClientVersion::V1Beta,
     )
 }
@@ -138,8 +140,6 @@ fn describe_error(error: IdentityHubClientError) -> String {
 pub struct ParticipantContextPanelProps {
     /// The page's own origin, e.g. `https://issuer-admin.ds-labs.org`.
     pub endpoint: String,
-    #[prop_or_default]
-    pub bearer_token: Option<String>,
     /// `None` renders the create form; `Some(id)` renders the
     /// view/activate/deactivate/delete panel for that existing context.
     #[prop_or_default]
@@ -162,7 +162,6 @@ pub fn participant_context_panel(props: &ParticipantContextPanelProps) -> Html {
         Some(id) => html!(
             <ManagePanel
                 endpoint={props.endpoint.clone()}
-                bearer_token={props.bearer_token.clone()}
                 participant_context_id={id.clone()}
                 on_activated={props.on_activated.clone()}
                 on_deleted={props.on_deleted.clone()}
@@ -174,7 +173,6 @@ pub fn participant_context_panel(props: &ParticipantContextPanelProps) -> Html {
 #[derive(Properties, PartialEq)]
 struct CreatePanelProps {
     endpoint: String,
-    bearer_token: Option<String>,
     on_created: Callback<String>,
 }
 
@@ -182,7 +180,6 @@ impl From<&ParticipantContextPanelProps> for CreatePanelProps {
     fn from(props: &ParticipantContextPanelProps) -> Self {
         Self {
             endpoint: props.endpoint.clone(),
-            bearer_token: props.bearer_token.clone(),
             on_created: props.on_created.clone(),
         }
     }
@@ -205,7 +202,6 @@ fn create_panel(props: &CreatePanelProps) -> Html {
         let error = error.clone();
         let submitting = submitting.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let on_created = props.on_created.clone();
 
         Callback::from(move |event: SubmitEvent| {
@@ -229,13 +225,12 @@ fn create_panel(props: &CreatePanelProps) -> Html {
 
             let created_id = (*participant_id).clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let on_created = on_created.clone();
             let error = error.clone();
             let submitting = submitting.clone();
 
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client.create_participant(&body).await {
                     Ok(_response) => {
                         submitting.set(false);
@@ -341,7 +336,6 @@ enum LoadState {
 #[derive(Properties, PartialEq)]
 struct ManagePanelProps {
     endpoint: String,
-    bearer_token: Option<String>,
     participant_context_id: String,
     on_activated: Callback<()>,
     on_deleted: Callback<()>,
@@ -357,7 +351,6 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
     {
         let load_state = load_state.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         use_effect_with(
             (participant_context_id.clone(), *reload),
@@ -365,10 +358,9 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
                 load_state.set(LoadState::Loading);
                 let load_state = load_state.clone();
                 let endpoint = endpoint.clone();
-                let bearer_token = bearer_token.clone();
                 let participant_context_id = participant_context_id.clone();
                 spawn_local(async move {
-                    let client = build_client(&endpoint, bearer_token);
+                    let client = build_client(&endpoint);
                     match client.get_participant(&participant_context_id).await {
                         Ok(participant) => load_state.set(LoadState::Loaded(participant)),
                         Err(err) => load_state.set(LoadState::Error(describe_error(err))),
@@ -384,7 +376,6 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
         let action_error = action_error.clone();
         let reload = reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         let on_activated = props.on_activated.clone();
         Callback::from(move |is_active: bool| {
@@ -395,11 +386,10 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
             let reload = reload.clone();
             let current_reload = *reload;
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let on_activated = on_activated.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client
                     .activate_participant(&participant_context_id, is_active)
                     .await
@@ -424,7 +414,6 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
         let acting = acting.clone();
         let action_error = action_error.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         let on_deleted = props.on_deleted.clone();
         Callback::from(move |_: MouseEvent| {
@@ -433,11 +422,10 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
             let acting = acting.clone();
             let action_error = action_error.clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let on_deleted = on_deleted.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client.delete_participant(&participant_context_id).await {
                     Ok(_) => {
                         acting.set(false);

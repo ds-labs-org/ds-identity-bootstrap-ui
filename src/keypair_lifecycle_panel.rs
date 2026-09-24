@@ -40,11 +40,11 @@ pub fn build_key_descriptor(key_id: &str, algorithm: &str) -> Result<KeyDescript
     })
 }
 
-fn build_client(endpoint: &str, bearer_token: Option<String>) -> IdentityHubClient {
+fn build_client(endpoint: &str) -> IdentityHubClient {
     IdentityHubClient::new(
         reqwest::Client::new(),
         endpoint.to_string(),
-        bearer_token,
+        None,
         IdentityHubClientVersion::V1Beta,
     )
 }
@@ -79,8 +79,6 @@ enum LoadState {
 pub struct KeypairLifecyclePanelProps {
     /// The page's own origin, e.g. `https://issuer-admin.ds-labs.org`.
     pub endpoint: String,
-    #[prop_or_default]
-    pub bearer_token: Option<String>,
     pub participant_context_id: String,
 }
 
@@ -97,7 +95,6 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
     {
         let load_state = load_state.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         use_effect_with(
             (participant_context_id.clone(), *reload),
@@ -105,10 +102,9 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
                 load_state.set(LoadState::Loading);
                 let load_state = load_state.clone();
                 let endpoint = endpoint.clone();
-                let bearer_token = bearer_token.clone();
                 let participant_context_id = participant_context_id.clone();
                 spawn_local(async move {
-                    let client = build_client(&endpoint, bearer_token);
+                    let client = build_client(&endpoint);
                     match client.list_keypairs(&participant_context_id).await {
                         Ok(keypairs) => load_state.set(LoadState::Loaded(keypairs)),
                         Err(err) => load_state.set(LoadState::Error(describe_error(err))),
@@ -148,7 +144,6 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
         let show_add_modal = show_add_modal.clone();
         let bump_reload = bump_reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
 
         Callback::from(move |_: MouseEvent| {
@@ -164,7 +159,6 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
             submitting.set(true);
 
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             let action_error = action_error.clone();
             let submitting = submitting.clone();
@@ -172,7 +166,7 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
             let bump_reload = bump_reload.clone();
 
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client
                     .add_keypair(&participant_context_id, &descriptor, false)
                     .await
@@ -195,16 +189,14 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
         let action_error = action_error.clone();
         let bump_reload = bump_reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         Callback::from(move |key_pair_id: String| {
             let action_error = action_error.clone();
             let bump_reload = bump_reload.clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client
                     .activate_keypair(&participant_context_id, &key_pair_id)
                     .await
@@ -220,16 +212,14 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
         let action_error = action_error.clone();
         let bump_reload = bump_reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         Callback::from(move |key_pair_id: String| {
             let action_error = action_error.clone();
             let bump_reload = bump_reload.clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 // No replacement key supplied here (`None`) -- the server
                 // generates one using the same algorithm as the key being
                 // rotated. `duration=0` retires the old key immediately
@@ -249,7 +239,6 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
         let action_error = action_error.clone();
         let bump_reload = bump_reload.clone();
         let endpoint = props.endpoint.clone();
-        let bearer_token = props.bearer_token.clone();
         let participant_context_id = props.participant_context_id.clone();
         Callback::from(move |key_pair_id: String| {
             let confirmed = web_sys::window()
@@ -268,10 +257,9 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
             let action_error = action_error.clone();
             let bump_reload = bump_reload.clone();
             let endpoint = endpoint.clone();
-            let bearer_token = bearer_token.clone();
             let participant_context_id = participant_context_id.clone();
             spawn_local(async move {
-                let client = build_client(&endpoint, bearer_token);
+                let client = build_client(&endpoint);
                 match client
                     .revoke_keypair(&participant_context_id, &key_pair_id, None)
                     .await
