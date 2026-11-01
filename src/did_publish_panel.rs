@@ -6,7 +6,9 @@
 //! reviewed mockup -- and also usable standalone for later unpublish/
 //! republish management.
 
-use edc_identity_hub_client::{IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion};
+use edc_identity_hub_client::{
+    IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion,
+};
 use patternfly_yew::prelude::*;
 use yew::platform::spawn_local;
 use yew::prelude::*;
@@ -22,8 +24,30 @@ use yew::prelude::*;
 /// string. Re-deriving it here, rather than threading a second ID through
 /// every prop in this crate, keeps "the participant ID" the only identifier
 /// a consumer has to hold onto end-to-end.
+///
+/// A participant ID typed as `host:port` gets its port written `%3A<port>`,
+/// as did:web requires (2026-10-16 audit, F5): `did:web:host:8443` would be
+/// the host `host` and the path `8443`. A second segment counts as a port
+/// when it is a number from 0 to 65535; anything else is a path segment and
+/// stays as it is, as does an already encoded `%3A`.
 pub fn did_from_participant_id(participant_id: &str) -> String {
-    format!("did:web:{participant_id}")
+    let mut segments = participant_id.splitn(3, ':');
+    let host = segments.next().unwrap_or_default();
+    let mut id = host.to_string();
+    let mut rest: Vec<&str> = segments.collect();
+    if let Some(port) = rest.first()
+        && port.bytes().all(|b| b.is_ascii_digit())
+        && port.parse::<u16>().is_ok()
+    {
+        id.push_str("%3A");
+        id.push_str(port);
+        rest.remove(0);
+    }
+    for segment in rest {
+        id.push(':');
+        id.push_str(segment);
+    }
+    format!("did:web:{id}")
 }
 
 /// Whether an `IdentityHubClient::get_did_state` result means "live and
@@ -90,21 +114,24 @@ pub fn did_publish_panel(props: &DidPublishPanelProps) -> Html {
         let endpoint = props.endpoint.clone();
         let participant_context_id = props.participant_context_id.clone();
         let did = did.clone();
-        use_effect_with((participant_context_id.clone(), did.clone(), *reload), move |_| {
-            state_load.set(StateLoad::Loading);
-            let state_load = state_load.clone();
-            let endpoint = endpoint.clone();
-            let participant_context_id = participant_context_id.clone();
-            let did = did.clone();
-            spawn_local(async move {
-                let client = build_client(&endpoint);
-                match client.get_did_state(&participant_context_id, &did).await {
-                    Ok(state) => state_load.set(StateLoad::Loaded(state)),
-                    Err(err) => state_load.set(StateLoad::Error(describe_error(err))),
-                }
-            });
-            || ()
-        });
+        use_effect_with(
+            (participant_context_id.clone(), did.clone(), *reload),
+            move |_| {
+                state_load.set(StateLoad::Loading);
+                let state_load = state_load.clone();
+                let endpoint = endpoint.clone();
+                let participant_context_id = participant_context_id.clone();
+                let did = did.clone();
+                spawn_local(async move {
+                    let client = build_client(&endpoint);
+                    match client.get_did_state(&participant_context_id, &did).await {
+                        Ok(state) => state_load.set(StateLoad::Loaded(state)),
+                        Err(err) => state_load.set(StateLoad::Error(describe_error(err))),
+                    }
+                });
+                || ()
+            },
+        );
     }
 
     // Auto-advance the wizard the moment the DID is observed as published --
@@ -257,7 +284,10 @@ mod pure_tests {
 
     #[test]
     fn derives_the_did_web_string_from_a_plain_host() {
-        assert_eq!(did_from_participant_id("did.ds-labs.org"), "did:web:did.ds-labs.org");
+        assert_eq!(
+            did_from_participant_id("did.ds-labs.org"),
+            "did:web:did.ds-labs.org"
+        );
     }
 
     #[test]
@@ -265,6 +295,32 @@ mod pure_tests {
         assert_eq!(
             did_from_participant_id("example.com:user:alice"),
             "did:web:example.com:user:alice"
+        );
+    }
+
+    /// did:web writes a port as `%3A` (2026-10-16 audit, F5):
+    /// `did:web:issuer.example:8443` is the host `issuer.example` and the
+    /// path `8443`, so a participant ID typed as `host:port` must not be
+    /// copied as it is.
+    #[test]
+    fn encodes_a_port_in_the_host_segment() {
+        assert_eq!(
+            did_from_participant_id("issuer.example:8443"),
+            "did:web:issuer.example%3A8443"
+        );
+        assert_eq!(
+            did_from_participant_id("localhost:8080:user:alice"),
+            "did:web:localhost%3A8080:user:alice"
+        );
+        assert_eq!(
+            did_from_participant_id("issuer.example%3A8443"),
+            "did:web:issuer.example%3A8443",
+            "an already encoded port is kept"
+        );
+        assert_eq!(
+            did_from_participant_id("issuer.example:99999"),
+            "did:web:issuer.example:99999",
+            "not a port: a path segment"
         );
     }
 
