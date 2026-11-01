@@ -24,8 +24,30 @@ use yew::prelude::*;
 /// string. Re-deriving it here, rather than threading a second ID through
 /// every prop in this crate, keeps "the participant ID" the only identifier
 /// a consumer has to hold onto end-to-end.
+///
+/// A participant ID typed as `host:port` gets its port written `%3A<port>`,
+/// as did:web requires (2026-10-16 audit, F5): `did:web:host:8443` would be
+/// the host `host` and the path `8443`. A second segment counts as a port
+/// when it is a number from 0 to 65535; anything else is a path segment and
+/// stays as it is, as does an already encoded `%3A`.
 pub fn did_from_participant_id(participant_id: &str) -> String {
-    format!("did:web:{participant_id}")
+    let mut segments = participant_id.splitn(3, ':');
+    let host = segments.next().unwrap_or_default();
+    let mut id = host.to_string();
+    let mut rest: Vec<&str> = segments.collect();
+    if let Some(port) = rest.first()
+        && port.bytes().all(|b| b.is_ascii_digit())
+        && port.parse::<u16>().is_ok()
+    {
+        id.push_str("%3A");
+        id.push_str(port);
+        rest.remove(0);
+    }
+    for segment in rest {
+        id.push(':');
+        id.push_str(segment);
+    }
+    format!("did:web:{id}")
 }
 
 /// Whether an `IdentityHubClient::get_did_state` result means "live and
