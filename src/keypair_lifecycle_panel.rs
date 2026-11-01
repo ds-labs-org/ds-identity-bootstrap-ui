@@ -9,7 +9,9 @@
 //! compromised one.
 
 use edc_identity_hub_client::models::{KeyDescriptor, KeyPairResource};
-use edc_identity_hub_client::{IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion};
+use edc_identity_hub_client::{
+    IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion,
+};
 use patternfly_yew::prelude::*;
 use yew::platform::spawn_local;
 use yew::prelude::*;
@@ -96,23 +98,20 @@ pub fn keypair_lifecycle_panel(props: &KeypairLifecyclePanelProps) -> Html {
         let load_state = load_state.clone();
         let endpoint = props.endpoint.clone();
         let participant_context_id = props.participant_context_id.clone();
-        use_effect_with(
-            (participant_context_id.clone(), *reload),
-            move |_| {
-                load_state.set(LoadState::Loading);
-                let load_state = load_state.clone();
-                let endpoint = endpoint.clone();
-                let participant_context_id = participant_context_id.clone();
-                spawn_local(async move {
-                    let client = build_client(&endpoint);
-                    match client.list_keypairs(&participant_context_id).await {
-                        Ok(keypairs) => load_state.set(LoadState::Loaded(keypairs)),
-                        Err(err) => load_state.set(LoadState::Error(describe_error(err))),
-                    }
-                });
-                || ()
-            },
-        );
+        use_effect_with((participant_context_id.clone(), *reload), move |_| {
+            load_state.set(LoadState::Loading);
+            let load_state = load_state.clone();
+            let endpoint = endpoint.clone();
+            let participant_context_id = participant_context_id.clone();
+            spawn_local(async move {
+                let client = build_client(&endpoint);
+                match client.list_keypairs(&participant_context_id).await {
+                    Ok(keypairs) => load_state.set(LoadState::Loaded(keypairs)),
+                    Err(err) => load_state.set(LoadState::Error(describe_error(err))),
+                }
+            });
+            || ()
+        });
     }
 
     let bump_reload = {
@@ -448,8 +447,8 @@ mod pure_tests {
 
     #[test]
     fn builds_a_generator_descriptor_for_valid_input() {
-        let descriptor =
-            build_key_descriptor("did.example.com#key-2", "EC").expect("valid input should build a KeyDescriptor");
+        let descriptor = build_key_descriptor("did.example.com#key-2", "EC")
+            .expect("valid input should build a KeyDescriptor");
 
         assert_eq!(descriptor.key_id.as_deref(), Some("did.example.com#key-2"));
         assert_eq!(

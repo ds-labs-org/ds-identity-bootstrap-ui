@@ -258,9 +258,16 @@ mod wasm_tests {
     }
 
     fn mount_in_fresh_div(props: IdentityBootstrapWizardProps) -> web_sys::Element {
-        let document = web_sys::window().expect("window").document().expect("document");
+        let document = web_sys::window()
+            .expect("window")
+            .document()
+            .expect("document");
         let root = document.create_element("div").expect("create_element");
-        document.body().expect("body").append_child(&root).expect("append_child");
+        document
+            .body()
+            .expect("body")
+            .append_child(&root)
+            .expect("append_child");
         yew::Renderer::<IdentityBootstrapWizard>::with_root_and_props(root.clone(), props).render();
         root
     }
@@ -289,7 +296,9 @@ mod wasm_tests {
 
         assert_eq!(current_step_label(&root), "Create context");
         assert!(
-            root.text_content().unwrap_or_default().contains("Participant ID"),
+            root.text_content()
+                .unwrap_or_default()
+                .contains("Participant ID"),
             "expected the create form to be showing"
         );
 

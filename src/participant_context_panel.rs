@@ -13,7 +13,9 @@
 //! same as every other client this workspace builds.
 
 use edc_identity_hub_client::models::{IdentityService, IdentityServiceType, ParticipantContext};
-use edc_identity_hub_client::{IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion};
+use edc_identity_hub_client::{
+    IdentityHubClient, IdentityHubClientError, IdentityHubClientVersion,
+};
 use patternfly_yew::prelude::*;
 use uuid::Uuid;
 use yew::platform::spawn_local;
@@ -94,7 +96,9 @@ pub fn build_participant_context(
     if service_endpoint_url.is_empty() {
         return Err("Service endpoint URL is required.".to_string());
     }
-    if !(service_endpoint_url.starts_with("https://") || service_endpoint_url.starts_with("http://")) {
+    if !(service_endpoint_url.starts_with("https://")
+        || service_endpoint_url.starts_with("http://"))
+    {
         return Err("Service endpoint URL must be an absolute http(s) URL.".to_string());
     }
 
@@ -102,7 +106,9 @@ pub fn build_participant_context(
         id: Uuid::new_v4().to_string(),
         r#type: service_endpoint_type
             .parse::<IdentityServiceType>()
-            .unwrap_or(IdentityServiceType::Custom(service_endpoint_type.to_string())),
+            .unwrap_or(IdentityServiceType::Custom(
+                service_endpoint_type.to_string(),
+            )),
         service_endpoint: service_endpoint_url.to_string(),
     };
 
@@ -352,23 +358,20 @@ fn manage_panel(props: &ManagePanelProps) -> Html {
         let load_state = load_state.clone();
         let endpoint = props.endpoint.clone();
         let participant_context_id = props.participant_context_id.clone();
-        use_effect_with(
-            (participant_context_id.clone(), *reload),
-            move |_| {
-                load_state.set(LoadState::Loading);
-                let load_state = load_state.clone();
-                let endpoint = endpoint.clone();
-                let participant_context_id = participant_context_id.clone();
-                spawn_local(async move {
-                    let client = build_client(&endpoint);
-                    match client.get_participant(&participant_context_id).await {
-                        Ok(participant) => load_state.set(LoadState::Loaded(participant)),
-                        Err(err) => load_state.set(LoadState::Error(describe_error(err))),
-                    }
-                });
-                || ()
-            },
-        );
+        use_effect_with((participant_context_id.clone(), *reload), move |_| {
+            load_state.set(LoadState::Loading);
+            let load_state = load_state.clone();
+            let endpoint = endpoint.clone();
+            let participant_context_id = participant_context_id.clone();
+            spawn_local(async move {
+                let client = build_client(&endpoint);
+                match client.get_participant(&participant_context_id).await {
+                    Ok(participant) => load_state.set(LoadState::Loaded(participant)),
+                    Err(err) => load_state.set(LoadState::Error(describe_error(err))),
+                }
+            });
+            || ()
+        });
     }
 
     let do_activate = {
@@ -501,19 +504,34 @@ mod pure_tests {
 
     #[test]
     fn rejects_a_blank_participant_id() {
-        let result = build_participant_context("  ", ParticipantRole::Authority, "CredentialService", "https://example.com");
+        let result = build_participant_context(
+            "  ",
+            ParticipantRole::Authority,
+            "CredentialService",
+            "https://example.com",
+        );
         assert_eq!(result.unwrap_err(), "Participant ID is required.");
     }
 
     #[test]
     fn rejects_a_blank_service_endpoint_type() {
-        let result = build_participant_context("did.example.com", ParticipantRole::Authority, "  ", "https://example.com");
+        let result = build_participant_context(
+            "did.example.com",
+            ParticipantRole::Authority,
+            "  ",
+            "https://example.com",
+        );
         assert_eq!(result.unwrap_err(), "Service endpoint type is required.");
     }
 
     #[test]
     fn rejects_a_blank_service_endpoint_url() {
-        let result = build_participant_context("did.example.com", ParticipantRole::Authority, "CredentialService", "  ");
+        let result = build_participant_context(
+            "did.example.com",
+            ParticipantRole::Authority,
+            "CredentialService",
+            "  ",
+        );
         assert_eq!(result.unwrap_err(), "Service endpoint URL is required.");
     }
 
